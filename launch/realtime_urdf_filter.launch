@@ -1,29 +1,34 @@
 <launch>
   <arg name="nodelet" default="false"/>
 
+  <arg name="simulated"
+        default="false"
+        doc="Whether to start in Gazebo or in real life." />
+
+  <!-- Simulated -->
+  <arg name="camera_info" default="/zed/zed_node/depth/camera_info" if="$(arg simulated)"/>
+  <arg name="depth_image" default="/zed/zed_node/depth/depth_registered" if="$(arg simulated)"/>
+  <arg name="config_file" default="$(find realtime_urdf_filter)/config/self_filter_params_sim.yaml" if="$(arg simulated)" />
+
+  <!-- real -->
+  <arg name="camera_info" default="/trisect/downsampled/left/camera_info" unless="$(arg simulated)"/>
+  <arg name="depth_image" default="/raft_stereo/depth_image" unless="$(arg simulated)"/>
+  <arg name="config_file" default="$(find realtime_urdf_filter)/config/self_filter_params_real.yaml" unless="$(arg simulated)" />
+
   <!-- Launch nodelet -->
-  <node if="$(arg nodelet)" pkg="nodelet" type="nodelet" name="realtime_urtf_filter_nodelet" args="load realtime_urdf_filter/RealtimeURDFFilterNodelet camera_nodelet_manager" output="screen">
-    <remap from="~input_depth" to="/camera/depth_registered/image_rect"/>
-    <remap from="~output_depth" to="/camera/depth_registered_filtered/image_rect" />
-    <remap from="~output_mask" to="/urdf_filtered_mask" />
-
-    <rosparam command="load" file="$(find realtime_urdf_filter)/launch/filter_parameters.yaml"/>
+  <node if="$(arg nodelet)" pkg="nodelet" type="nodelet" name="realtime_urdf_filter_nodelet" args="load realtime_urdf_filter/RealtimeURDFFilterNodelet camera_nodelet_manager" output="screen">
+    <remap from="~input_depth" to="$(arg depth_image)" />
+    <remap from="~output_depth" to="~filtered_depth/image_rect" />
+    <remap from="~output_mask" to="~filtered_depth/mask" />
+    <rosparam command="load" file="$(arg config_file)"/>
   </node>
 
-  <node unless="$(arg nodelet)"
-    pkg="realtime_urdf_filter" type="realtime_urdf_filter" name="$(anon realtime_urdf_filter)" output="screen">
-    <remap from="~input_depth" to="/camera/depth_registered/image_rect"/>
-    <remap from="~output_depth" to="/camera/depth_registered_filtered/image_rect" />
-    <remap from="~output_mask" to="/urdf_filtered_mask" />
-
-    <rosparam command="load" file="$(find realtime_urdf_filter)/launch/filter_parameters.yaml"/>
+  <node unless="$(arg nodelet)" pkg="realtime_urdf_filter" type="realtime_urdf_filter" name="realtime_urdf_filter" output="screen">
+    <remap from="~input_depth" to="$(arg depth_image)" />
+    <remap from="~output_depth" to="~filtered_depth/image_rect" />
+    <remap from="~output_mask" to="~filtered_depth/mask" />
+    <rosparam command="load" file="$(arg config_file)"/>
   </node>
 
-  <!-- Load an example URDF -->
-  <param name="robot_description" command="$(find xacro)/xacro '$(find realtime_urdf_filter)/urdf/example.urdf.xml'"/>
-
-  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
-    <param name="tf_prefix" value="EXAMPLE"/>
-  </node>
 </launch>
 
