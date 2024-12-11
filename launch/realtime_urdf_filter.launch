@@ -1,9 +1,15 @@
 <launch>
-  <arg name="nodelet" default="false"/>
 
+  <arg name="nodelet"
+        default="false"
+        doc="Whether to start a nodelet." />
   <arg name="simulated"
         default="false"
         doc="Whether to start in Gazebo or in real life." />
+
+  <arg name="publish_pc"
+        default="true"
+        doc="Publish a filtered point cloud." />
 
   <!-- Simulated -->
   <arg name="camera_info" default="/zed/zed_node/depth/camera_info" if="$(arg simulated)"/>
@@ -16,19 +22,36 @@
   <arg name="config_file" default="$(find realtime_urdf_filter)/config/self_filter_params_real.yaml" unless="$(arg simulated)" />
 
   <!-- Launch nodelet -->
-  <node if="$(arg nodelet)" pkg="nodelet" type="nodelet" name="realtime_urdf_filter_nodelet" args="load realtime_urdf_filter/RealtimeURDFFilterNodelet camera_nodelet_manager" output="screen">
+  <group if="$(arg nodelet)">
+    <node pkg="nodelet" type="nodelet" args="manager" name="nodelet_manager" output="screen"/>
+
+    <node pkg="nodelet" type="nodelet" name="realtime_urdf_filter"
+          args="load realtime_urdf_filter/RealtimeURDFFilterNodelet nodelet_manager"
+          output="screen">
+      <remap from="~input_depth" to="$(arg depth_image)" />
+      <remap from="~output_depth" to="~filtered_depth/depth" />
+      <remap from="~output_mask" to="~filtered_depth/mask" />
+      <rosparam command="load" file="$(arg config_file)"/>
+    </node>
+
+    <node if="$(arg publish_pc)" pkg="nodelet" type="nodelet" name="depth_image_proc"
+          args="load depth_image_proc/point_cloud_xyz nodelet_manager --no-bond" output="screen">
+      <remap from="camera_info" to="$(arg camera_info)" />
+      <remap from="image_rect" to="/realtime_urdf_filter/filtered_depth/depth" />
+      <remap from="points" to="/filtered_depth/points" />
+    </node>
+
+  </group>
+
+
+  <node unless="$(arg nodelet)" pkg="realtime_urdf_filter" type="realtime_urdf_filter" name="realtime_urdf_filter" output="screen">
     <remap from="~input_depth" to="$(arg depth_image)" />
-    <remap from="~output_depth" to="~filtered_depth/image_rect" />
+    <remap from="~output_depth" to="~filtered_depth/depth" />
     <remap from="~output_mask" to="~filtered_depth/mask" />
     <rosparam command="load" file="$(arg config_file)"/>
   </node>
 
-  <node unless="$(arg nodelet)" pkg="realtime_urdf_filter" type="realtime_urdf_filter" name="realtime_urdf_filter" output="screen">
-    <remap from="~input_depth" to="$(arg depth_image)" />
-    <remap from="~output_depth" to="~filtered_depth/image_rect" />
-    <remap from="~output_mask" to="~filtered_depth/mask" />
-    <rosparam command="load" file="$(arg config_file)"/>
-  </node>
+
 
 </launch>
 

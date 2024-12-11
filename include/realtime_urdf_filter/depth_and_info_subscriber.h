@@ -66,7 +66,7 @@ namespace realtime_urdf_filter
     DepthAndInfoSubscriber (ros::NodeHandle comm_nh, Callback cb)
       : depth_img_sub (comm_nh, "/camera/depth_registered/image", 10)
       , cam_info_sub (comm_nh, "/camera/rgb/camera_info", 10)
-      , di_sync (DepthAndInfoSyncPolicy(100), depth_img_sub, cam_info_sub )
+      , di_sync (DepthAndInfoSyncPolicy(10), depth_img_sub, cam_info_sub )
       , callback (cb)
     {
       di_sync.registerCallback (boost::bind (&DepthAndInfoSubscriber::depthAndInfoCb, this, _1,_2));
@@ -79,6 +79,7 @@ namespace realtime_urdf_filter
                          const sensor_msgs::CameraInfo::ConstPtr& camera_info_msg)
     {
       callback (depth_img_msg, camera_info_msg);
+      ROS_INFO ("wtf is happening");
     }
   };
 
