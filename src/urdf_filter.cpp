@@ -118,6 +118,11 @@ RealtimeURDFFilter::RealtimeURDFFilter(ros::NodeHandle& nh, int argc,
   nh_.param<double>("filter_replace_value", filter_replace_value_, 0);
   ROS_INFO("using filter replace value %f", filter_replace_value_);
 
+  // setup Subscribers
+  depth_sub_ = image_transport_.subscribeCamera(
+      "input_depth", 10, &RealtimeURDFFilter::filter_callback, this);
+  pointcloud_sub_ = nh_.subscribe("input_points", 10, &RealtimeURDFFilter::pc_callback, this);
+
   // setup publishers
   depth_sub_ = image_transport_.subscribeCamera(
       "input_depth", 10, &RealtimeURDFFilter::filter_callback, this);
@@ -206,6 +211,9 @@ double RealtimeURDFFilter::getTime() {
   return (current_time.tv_sec + 1e-6 * current_time.tv_usec);
 }
 
+void RealtimeURDFFilter::pc_callback(const sensor_msgs::PointCloud2ConstPtr& msg) {
+    // ROS_INFO_THROTTLE(1, "Received PointCloud2 message");
+}
 void RealtimeURDFFilter::filter(unsigned char* buffer,
                                 double* projection_matrix, int width,
                                 int height, ros::Time timestamp) {
@@ -226,11 +234,11 @@ void RealtimeURDFFilter::filter(unsigned char* buffer,
     return;
   }
 
-  // if (mask_pub_.getNumSubscribers() > 0) {
-  need_mask_ = true;
-  // } else {
-  //   need_mask_ = false;
-  // }
+  if (mask_pub_.getNumSubscribers() > 0) {
+    need_mask_ = true;
+  } else {
+    need_mask_ = false;
+  }
 
   // get depth_image into OpenGL texture buffer
   int size_in_bytes = width_ * height_ * sizeof(float);
@@ -274,8 +282,6 @@ void RealtimeURDFFilter::filter_callback(
     const sensor_msgs::CameraInfo::ConstPtr& camera_info) {
   // Debugging
   ROS_DEBUG_STREAM("Received image with camera info: " << *camera_info);
-  ROS_INFO("Received depth image at: %f", ros_depth_image->header.stamp.toSec());
-  ROS_INFO("Received camera info at: %f", camera_info->header.stamp.toSec());
 
   // convert to OpenCV cv::Mat
   cv_bridge::CvImageConstPtr orig_depth_img;
@@ -307,29 +313,29 @@ void RealtimeURDFFilter::filter_callback(
                ros_depth_image->header.stamp);
 
   // publish processed depth image and image mask
-  // if (depth_pub_.getNumSubscribers() > 0) {
-  cv::Mat masked_depth_image(camera_info->height, camera_info->width,
-                              CV_32FC1, masked_depth_);
-  if (ros_depth_image->encoding == sensor_msgs::image_encodings::TYPE_16UC1) {
-    masked_depth_image.convertTo(masked_depth_image, CV_16U, 1000.0);
+  if (depth_pub_.getNumSubscribers() > 0) {
+    cv::Mat masked_depth_image(camera_info->height, camera_info->width,
+                                CV_32FC1, masked_depth_);
+    if (ros_depth_image->encoding == sensor_msgs::image_encodings::TYPE_16UC1) {
+      masked_depth_image.convertTo(masked_depth_image, CV_16U, 1000.0);
+    }
+
+    cv_bridge::CvImage out_masked_depth;
+    out_masked_depth.header = ros_depth_image->header;
+    out_masked_depth.encoding = ros_depth_image->encoding;
+    out_masked_depth.image = masked_depth_image;
+    depth_pub_.publish(out_masked_depth.toImageMsg(), camera_info);
   }
 
-  cv_bridge::CvImage out_masked_depth;
-  out_masked_depth.header = ros_depth_image->header;
-  out_masked_depth.encoding = ros_depth_image->encoding;
-  out_masked_depth.image = masked_depth_image;
-  depth_pub_.publish(out_masked_depth.toImageMsg(), camera_info);
-  // }
-
-  // if (mask_pub_.getNumSubscribers() > 0) {
-  cv::Mat mask_image(camera_info->height, camera_info->width, CV_8UC1, mask_);
-  cv_bridge::CvImage out_mask;
-  out_mask.header = ros_depth_image->header;
-  out_mask.encoding = sensor_msgs::image_encodings::MONO8;
-  out_mask.image = mask_image;
-  mask_pub_.publish(out_mask.toImageMsg(), camera_info);
+  if (mask_pub_.getNumSubscribers() > 0) {
+    cv::Mat mask_image(camera_info->height, camera_info->width, CV_8UC1, mask_);
+    cv_bridge::CvImage out_mask;
+    out_mask.header = ros_depth_image->header;
+    out_mask.encoding = sensor_msgs::image_encodings::MONO8;
+    out_mask.image = mask_image;
+    mask_pub_.publish(out_mask.toImageMsg(), camera_info);
+  }
 }
-// }
 
 void RealtimeURDFFilter::textureBufferFromDepthBuffer(unsigned char* buffer,
                                                       int size_in_bytes) {
