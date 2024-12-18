@@ -34,6 +34,7 @@
 #include <ros/node_handle.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CameraInfo.h>
+#include <sensor_msgs/PointCloud2.h>
 #include <tf/transform_listener.h>
 
 #include <opencv2/opencv.hpp>
@@ -66,6 +67,7 @@ class RealtimeURDFFilter
     void filter_callback
          (const sensor_msgs::ImageConstPtr& ros_depth_image,
           const sensor_msgs::CameraInfo::ConstPtr& camera_info);
+    void pc_callback(const sensor_msgs::PointCloud2ConstPtr& msg);
 
     // does virtual rendering and filtering based on depth buffer and opengl proj. matrix
     void filter (
@@ -97,6 +99,7 @@ class RealtimeURDFFilter
     tf::TransformListener tf_;
     image_transport::ImageTransport image_transport_;
     image_transport::CameraSubscriber depth_sub_;
+    ros::Subscriber pointcloud_sub_;
     image_transport::CameraPublisher depth_pub_;
     image_transport::CameraPublisher mask_pub_;
 
