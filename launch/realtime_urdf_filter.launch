@@ -1,63 +1,40 @@
 <launch>
-
-  <arg name="nodelet"
-        default="true"
-        doc="Whether to start a nodelet." />
-
-  <arg name="simulated"
-        default="false"
-        doc="Whether to start in Gazebo or in real life." />
-
   <arg name="publish_pc"
         default="false"
         doc="Publish a filtered point cloud." />
 
-  <!-- Simulated -->
-  <arg name="camera_info" default="/zed/zed_node/depth/camera_info" if="$(arg simulated)"/>
-  <arg name="depth_image" default="/zed/zed_node/depth/depth_registered" if="$(arg simulated)"/>
-  <arg name="pointcloud" default="/zed/zed_node/point_cloud/cloud_registered" if="$(arg simulated)"/>
-  <arg name="config_file" default="$(find realtime_urdf_filter)/config/self_filter_params_sim.yaml" if="$(arg simulated)" />
-  <arg name="pointcloud" default="/zed/zed_node/point_cloud/cloud_registered" if="$(arg simulated)"/>
+  <arg name="camera_info"
+        default="/zed/zed_node/depth/camera_info" />
 
-  <!-- real -->
-  <arg name="camera_info" default="/trisect/downsampled/left/camera_info" unless="$(arg simulated)"/>
-  <arg name="depth_image" default="/raft_stereo/depth_image" unless="$(arg simulated)"/>
-  <arg name="pointcloud" default="/raft_stereo/pointcloud" unless="$(arg simulated)"/>
-  <arg name="config_file" default="$(find realtime_urdf_filter)/config/self_filter_params_real.yaml" unless="$(arg simulated)" />
-  <arg name="pointcloud" default="/raft_stereo/pointcloud" unless="$(arg simulated)"/>
+  <arg name="depth_image"
+        default="/zed/zed_node/depth/depth_registered" />
+
+  <arg name="pointcloud"
+        default="/zed/zed_node/point_cloud/cloud_registered" />
+
+  <arg name="config_file"
+        default="$(find realtime_urdf_filter)/config/self_filter_params_sim.yaml" />
+
 
   <!-- Launch nodelet -->
-  <group if="$(arg nodelet)">
-    <node pkg="nodelet" type="nodelet" args="manager" name="nodelet_manager" output="screen"/>
+  <node pkg="nodelet" type="nodelet" args="manager" name="nodelet_manager" output="screen"/>
 
-    <node pkg="nodelet" type="nodelet" name="realtime_urdf_filter"
-          args="load realtime_urdf_filter/RealtimeURDFFilterNodelet nodelet_manager"
-          output="screen">
-      <remap from="~depth_image" to="$(arg depth_image)" />
-      <remap from="~camera_info" to="$(arg camera_info)" />
-      <remap from="~output_depth" to="~filtered_depth/depth" />
-      <remap from="~output_mask" to="~filtered_depth/mask" />
-      <rosparam command="load" file="$(arg config_file)"/>
-    </node>
-
-    <node if="$(arg publish_pc)" pkg="nodelet" type="nodelet" name="depth_image_proc"
-          args="load depth_image_proc/point_cloud_xyz nodelet_manager --no-bond" output="screen">
-      <remap from="camera_info" to="$(arg camera_info)" />
-      <remap from="image_rect" to="/realtime_urdf_filter/filtered_depth/depth" />
-      <remap from="points" to="/filtered_depth/points" />
-    </node>
-
-  </group>
-
-
-  <node unless="$(arg nodelet)" pkg="realtime_urdf_filter" type="realtime_urdf_filter" name="realtime_urdf_filter" output="screen">
-    <!-- <remap from="~depth_image" to="$(arg depth_image)" /> -->
-    <!-- <remap from="~camera_info" to="$(arg camera_info)" /> -->
+  <node pkg="nodelet" type="nodelet" name="realtime_urdf_filter"
+        args="load realtime_urdf_filter/RealtimeURDFFilterNodelet nodelet_manager"
+        output="screen">
+    <remap from="~input_depth" to="$(arg depth_image)" />
+    <remap from="~input_points" to="$(arg pointcloud)" />
     <remap from="~output_depth" to="~filtered_depth/depth" />
     <remap from="~output_mask" to="~filtered_depth/mask" />
     <rosparam command="load" file="$(arg config_file)"/>
   </node>
 
+  <node if="$(arg publish_pc)" pkg="nodelet" type="nodelet" name="depth_image_proc"
+        args="load depth_image_proc/point_cloud_xyz nodelet_manager --no-bond" output="screen">
+    <remap from="camera_info" to="$(arg camera_info)" />
+    <remap from="image_rect" to="/realtime_urdf_filter/filtered_depth/depth" />
+    <remap from="points" to="/filtered_depth/points" />
+  </node>
 
 
 </launch>

@@ -124,8 +124,6 @@ RealtimeURDFFilter::RealtimeURDFFilter(ros::NodeHandle& nh, int argc,
   pointcloud_sub_ = nh_.subscribe("input_points", 10, &RealtimeURDFFilter::pc_callback, this);
 
   // setup publishers
-  depth_sub_ = image_transport_.subscribeCamera(
-      "input_depth", 10, &RealtimeURDFFilter::filter_callback, this);
   depth_pub_ = image_transport_.advertiseCamera("output_depth", 10);
   mask_pub_ = image_transport_.advertiseCamera("output_mask", 10);
 
